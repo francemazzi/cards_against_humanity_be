@@ -197,7 +197,7 @@ export async function getAllUsers(): Promise<UserPublic[]> {
     orderBy: { createdAt: "desc" },
   });
 
-  return users.map((u) => userToPublic(dbUserToUser(u)));
+  return users.map((u: { id: string; openaiKeyHash: string; openaiKeyLast4: string; nickname: string | null; createdAt: Date; updatedAt: Date; lastLoginAt: Date | null }) => userToPublic(dbUserToUser(u)));
 }
 
 /**

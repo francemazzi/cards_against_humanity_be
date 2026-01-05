@@ -9,6 +9,9 @@ COPY cards ./cards/
 
 RUN npm install
 
+# Generate Prisma client
+RUN npx prisma generate
+
 COPY src ./src
 
 RUN npm run build
@@ -19,8 +22,12 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY cards ./cards/
+COPY prisma ./prisma/
 
 RUN npm install --only=production
+
+# Generate Prisma client for production
+RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist
 

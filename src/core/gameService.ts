@@ -543,7 +543,7 @@ export async function getAllCustomPersonas(): Promise<Persona[]> {
     orderBy: { createdAt: "desc" },
   });
 
-  return personas.map((p) => ({
+  return personas.map((p: { id: string; name: string; systemPrompt: string; description: string | null }) => ({
     id: p.id,
     name: p.name,
     systemPrompt: p.systemPrompt,
@@ -695,16 +695,16 @@ export async function loadGameFromDb(
   const allBlack = cards.getAllBlackCards();
 
   const deckWhite = dbGame.deckWhiteIds
-    .map((id) => allWhite.find((c) => c.id === id))
+    .map((id: string) => allWhite.find((c: WhiteCard) => c.id === id))
     .filter((c): c is WhiteCard => c !== undefined);
 
   const deckBlack = dbGame.deckBlackIds
-    .map((id) => allBlack.find((c) => c.id === id))
+    .map((id: string) => allBlack.find((c: BlackCard) => c.id === id))
     .filter((c): c is BlackCard => c !== undefined);
 
   // Filter played cards for current round
   const currentRoundCards = dbGame.playedCards.filter(
-    (pc) => pc.round === dbGame.round
+    (pc: { round: number }) => pc.round === dbGame.round
   );
 
   const game: GameState = {
@@ -716,7 +716,7 @@ export async function loadGameFromDb(
     currentBlackCard: dbGame.currentBlackCard as BlackCard | null,
     deckBlack,
     deckWhite,
-    players: dbGame.players.map((p) => ({
+    players: dbGame.players.map((p: { id: string; name: string; isBot: boolean; score: number; hand: unknown; userId: string | null; personaId: string | null; personaName: string | null; systemPrompt: string | null }) => ({
       id: p.id,
       name: p.name,
       isBot: p.isBot,
@@ -731,7 +731,7 @@ export async function loadGameFromDb(
           }
         : undefined,
     })),
-    table: currentRoundCards.map((pc) => ({
+    table: currentRoundCards.map((pc: { playerId: string; cards: unknown }) => ({
       playerId: pc.playerId,
       cards: pc.cards as unknown as WhiteCard[],
     })),
