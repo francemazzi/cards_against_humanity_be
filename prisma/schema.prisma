@@ -14,6 +14,8 @@ datasource db {
 
 model Game {
   id              String       @id @default(uuid())
+  ownerId         String
+  owner           User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   status          GameStatus   @default(LOBBY)
   round           Int          @default(0)
   czarIndex       Int          @default(0)
@@ -34,6 +36,7 @@ model Game {
   playedCards     PlayedCard[]
   
   @@index([status])
+  @@index([ownerId])
 }
 
 model Player {
@@ -49,6 +52,10 @@ model Player {
   personaId   String?
   personaName String?
   systemPrompt String? @db.Text
+
+  // Optional user link (for future multiplayer / tracking)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   
   gameId    String
   game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
@@ -58,6 +65,7 @@ model Player {
   createdAt DateTime @default(now())
   
   @@index([gameId])
+  @@index([userId])
 }
 
 model PlayedCard {
@@ -86,6 +94,23 @@ model Persona {
   description  String?
   
   createdAt    DateTime @default(now())
+}
+
+// ============ USER AUTH ============
+
+model User {
+  id             String   @id @default(uuid())
+  openaiKeyHash  String   @unique
+  openaiKeyLast4 String
+  nickname       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+  lastLoginAt    DateTime?
+
+  games          Game[]
+  players        Player[]
+
+  @@index([openaiKeyHash])
 }
 
 // ============ ENUMS ============

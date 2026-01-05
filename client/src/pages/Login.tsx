@@ -1,0 +1,98 @@
+import { useState, useEffect } from 'react';
+import { authService } from '../services/api';
+import { useGameStore } from '../store/gameStore';
+import { useNavigate } from 'react-router-dom';
+
+export const Login = () => {
+  const [apiKey, setApiKey] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const setUser = useGameStore(state => state.setUser);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if key exists in local storage
+    const storedKey = localStorage.getItem('openai_key');
+    if (storedKey) {
+      setApiKey(storedKey);
+    }
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      // Basic validation
+      if (!apiKey.startsWith('sk-')) {
+        // setError('API Key should start with sk-');
+        // Continue anyway as it might be a project key
+      }
+
+      const response = await authService.register(apiKey, nickname || 'Player');
+      
+      localStorage.setItem('openai_key', apiKey);
+      setUser(response.user);
+      navigate('/lobby');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to login');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+        <h1 className="text-3xl font-bold font-cah mb-6 text-center">Cards Against Humanity</h1>
+        
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold mb-2">Nickname</label>
+            <input
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              className="w-full p-3 border-2 border-black rounded focus:outline-none focus:ring-2 focus:ring-black"
+              placeholder="Enter your name"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-bold mb-2">OpenAI API Key</label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              className="w-full p-3 border-2 border-black rounded focus:outline-none focus:ring-2 focus:ring-black"
+              placeholder="sk-..."
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Stored locally in your browser. Used for AI players.
+            </p>
+          </div>
+
+          {error && (
+            <div className="text-red-600 text-sm font-bold bg-red-100 p-3 rounded">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-black text-white font-bold py-3 px-4 rounded hover:bg-gray-800 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Connecting...' : 'Enter Game'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+

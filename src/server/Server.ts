@@ -7,6 +7,7 @@ import { getSwaggerConfig } from "../config/SwaggerConfig.js";
 import { getPort, getHost } from "../config/ServerConfig.js";
 import { registerHealthRoute } from "../routes/HealthRoute.js";
 import { registerGameRoute } from "../routes/GameRoute.js";
+import { registerUserRoute } from "../routes/UserRoute.js";
 import { initSocketServer } from "../socket/SocketManager.js";
 
 // Store HTTP server reference for Socket.IO
@@ -39,6 +40,7 @@ async function registerPlugins(fastify: FastifyInstance): Promise<void> {
 async function registerRoutes(fastify: FastifyInstance): Promise<void> {
   await fastify.register(registerHealthRoute);
   await fastify.register(registerGameRoute);
+  await fastify.register(registerUserRoute);
 }
 
 export async function initializeServer(
@@ -52,14 +54,15 @@ export async function startServer(fastify: FastifyInstance): Promise<void> {
   try {
     await initializeServer(fastify);
 
+    // Get the underlying HTTP server and initialize Socket.IO
+    // Initialize before listen to ensure listeners are properly attached
+    httpServer = fastify.server;
+    initSocketServer(httpServer);
+
     const address = await fastify.listen({
       port: getPort(),
       host: getHost(),
     });
-
-    // Get the underlying HTTP server and initialize Socket.IO
-    httpServer = fastify.server;
-    initSocketServer(httpServer);
 
     console.log(`Server listening on ${address}`);
     console.log(`Swagger documentation available at ${address}/documentation`);

@@ -12,10 +12,27 @@ services:
       - NODE_ENV=production
       - PORT=3300
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://postgres:password@db:5457/cards_db
+      # Inside docker network the db listens on 5432, host mapping is 5457
+      - DATABASE_URL=postgresql://postgres:password@db:5432/cards_db
     restart: unless-stopped
     depends_on:
       - db
+    networks:
+      - app-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        # This is consumed at build-time by Vite; browser must reach API via host port mapping
+        - VITE_API_URL=http://localhost:3300
+    container_name: cards-against-humanity-client
+    ports:
+      - "6609:80"
+    depends_on:
+      - api
+    restart: unless-stopped
     networks:
       - app-network
 

@@ -5,6 +5,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 COPY prisma ./prisma/
+COPY cards ./cards/
 
 RUN npm install
 
@@ -17,6 +18,7 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 COPY package*.json ./
+COPY cards ./cards/
 
 RUN npm install --only=production
 

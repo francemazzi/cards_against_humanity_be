@@ -24,6 +24,10 @@ const activeGames = new Map<string, GameState>();
 // Store API keys per game (in production, use Redis or similar)
 const gameApiKeys = new Map<string, string>();
 
+// Legacy/system owner for games created without authenticated user context
+// Must match the ID inserted by migration `20260105140646_add_user_auth`
+const LEGACY_SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000000";
+
 // --- API KEY MANAGEMENT ---
 
 export function setGameApiKey(gameId: string, apiKey: string): void {
@@ -38,7 +42,8 @@ export function getGameApiKey(gameId: string): string | undefined {
 
 export async function createGame(
   request: CreateGameRequest,
-  openaiKey?: string
+  openaiKey?: string,
+  ownerId?: string
 ): Promise<{ gameId: string; humanPlayerId: string }> {
   const gameId = uuidv4();
 
@@ -55,6 +60,7 @@ export async function createGame(
   const game = engine.createGameState(gameId, allBlack, allWhite, {
     pointsToWin: request.pointsToWin ?? 7,
   });
+  game.ownerId = ownerId;
 
   // Add human player
   const humanPlayerId = uuidv4();
@@ -63,6 +69,7 @@ export async function createGame(
     request.humanPlayerName,
     false
   );
+  humanPlayer.userId = ownerId;
   engine.addPlayer(game, humanPlayer);
 
   // Add AI players
@@ -88,7 +95,7 @@ export async function startGame(
   gameId: string,
   openaiKey?: string
 ): Promise<GameState> {
-  const game = getGame(gameId);
+  const game = await getOrLoadGame(gameId);
   const apiKey = openaiKey || gameApiKeys.get(gameId);
 
   if (!engine.canStartGame(game)) {
@@ -101,8 +108,10 @@ export async function startGame(
   const gameResponse = buildGameResponse(game);
   socketManager.broadcastRoundStarted(gameId, gameResponse);
 
-  // AI players play their cards
-  await processAITurns(game, apiKey);
+  // AI players play their cards (don't await to avoid blocking HTTP response)
+  processAITurns(game, apiKey).catch((err) =>
+    console.error("Error in background AI turns:", err)
+  );
 
   await saveGameToDb(game);
   return game;
@@ -114,7 +123,7 @@ export async function playHumanCards(
   cardIds: string[],
   openaiKey?: string
 ): Promise<GameState> {
-  const game = getGame(gameId);
+  const game = await getOrLoadGame(gameId);
   const apiKey = openaiKey || gameApiKeys.get(gameId);
 
   engine.playCards(game, playerId, cardIds);
@@ -145,7 +154,7 @@ export async function humanJudge(
   winnerIndex: number,
   openaiKey?: string
 ): Promise<GameState> {
-  const game = getGame(gameId);
+  const game = await getOrLoadGame(gameId);
   const apiKey = openaiKey || gameApiKeys.get(gameId);
   const czar = engine.getCzar(game);
 
@@ -196,7 +205,7 @@ export async function nextRound(
   gameId: string,
   openaiKey?: string
 ): Promise<GameState> {
-  const game = getGame(gameId);
+  const game = await getOrLoadGame(gameId);
   const apiKey = openaiKey || gameApiKeys.get(gameId);
 
   if (game.status !== "ROUND_ENDED") {
@@ -208,7 +217,10 @@ export async function nextRound(
   // Broadcast round started
   socketManager.broadcastRoundStarted(gameId, buildGameResponse(game));
 
-  await processAITurns(game, apiKey);
+  // Process AI turns in background
+  processAITurns(game, apiKey).catch((err) =>
+    console.error("Error in background AI turns:", err)
+  );
 
   await saveGameToDb(game);
   socketManager.broadcastGameState(gameId, buildGameResponse(game));
@@ -222,11 +234,16 @@ async function processAITurns(game: GameState, apiKey?: string): Promise<void> {
   if (game.status !== "PLAYING_CARDS") return;
 
   const botsToPlay = engine.getBotPlayersWhoNeedToPlay(game);
+  console.log(
+    `[Game ${game.id}] Processing AI turns for ${botsToPlay.length} bots`
+  );
 
+  // Process bots sequentially to avoid race conditions
   for (const bot of botsToPlay) {
     if (!bot.persona || !game.currentBlackCard) continue;
 
     try {
+      console.log(`[Game ${game.id}] Bot ${bot.name} picking card...`);
       const cardIndex = await llm.pickCard(
         bot.persona,
         bot.hand,
@@ -234,12 +251,18 @@ async function processAITurns(game: GameState, apiKey?: string): Promise<void> {
         apiKey
       );
 
+      console.log(
+        `[Game ${game.id}] Bot ${bot.name} picked index ${cardIndex}`
+      );
       const requiredCards = game.currentBlackCard.pick || 1;
       const cardIds = bot.hand
         .slice(cardIndex, cardIndex + requiredCards)
         .map((c) => c.id);
 
       engine.playCards(game, bot.id, cardIds);
+      console.log(
+        `[Game ${game.id}] Bot ${bot.name} played cards successfully`
+      );
 
       // Broadcast AI played
       socketManager.broadcastCardsPlayed(game.id, {
@@ -249,17 +272,44 @@ async function processAITurns(game: GameState, apiKey?: string): Promise<void> {
     } catch (error) {
       console.error(`AI ${bot.name} failed to play:`, error);
       // Fallback: play first card(s)
-      const requiredCards = game.currentBlackCard.pick || 1;
+      const requiredCards = game.currentBlackCard!.pick || 1;
       const cardIds = bot.hand.slice(0, requiredCards).map((c) => c.id);
-      engine.playCards(game, bot.id, cardIds);
+      try {
+        engine.playCards(game, bot.id, cardIds);
+        console.log(`[Game ${game.id}] Bot ${bot.name} played fallback cards`);
+        socketManager.broadcastCardsPlayed(game.id, {
+          playerId: bot.id,
+          cardsCount: cardIds.length,
+        });
+      } catch (e) {
+        console.error(`Fallback play failed for ${bot.name}:`, e);
+      }
     }
   }
 
-  // If all played and czar is AI, process judging
+  console.log(
+    `[Game ${game.id}] All bots finished. Game status: ${game.status}`
+  );
+
+  // Broadcast updated game state after all bots have played
+  socketManager.broadcastGameState(game.id, buildGameResponse(game));
+
+  // If status changed to JUDGING and czar is AI, process judging
   if ((game.status as string) === "JUDGING") {
-    socketManager.broadcastJudgingStarted(game.id, buildGameResponse(game));
-    await processAICzar(game, apiKey);
+    console.log(`[Game ${game.id}] Moving to JUDGING phase`);
+    const czar = engine.getCzar(game);
+    if (czar?.isBot) {
+      console.log(`[Game ${game.id}] AI Czar ${czar.name} will judge`);
+      socketManager.broadcastJudgingStarted(game.id, buildGameResponse(game));
+      await processAICzar(game, apiKey);
+    } else {
+      console.log(`[Game ${game.id}] Human Czar will judge`);
+      socketManager.broadcastJudgingStarted(game.id, buildGameResponse(game));
+    }
   }
+
+  // Save state after AI moves
+  await saveGameToDb(game);
 }
 
 async function processAICzar(game: GameState, apiKey?: string): Promise<void> {
@@ -323,6 +373,16 @@ export function getGame(gameId: string): GameState {
     throw new Error(`Game not found: ${gameId}`);
   }
   return game;
+}
+
+export async function getOrLoadGame(gameId: string): Promise<GameState> {
+  const cached = activeGames.get(gameId);
+  if (cached) return cached;
+  const loaded = await loadGameFromDb(gameId);
+  if (!loaded) {
+    throw new Error(`Game not found: ${gameId}`);
+  }
+  return loaded;
 }
 
 function buildGameResponse(game: GameState): GameResponse {
@@ -537,10 +597,12 @@ export async function deleteCustomPersona(id: string): Promise<void> {
 // --- DATABASE PERSISTENCE ---
 
 async function saveGameToDb(game: GameState): Promise<void> {
+  // Ensure the game exists or update it
   await prisma.game.upsert({
     where: { id: game.id },
     create: {
       id: game.id,
+      owner: { connect: { id: game.ownerId ?? LEGACY_SYSTEM_USER_ID } },
       status: game.status,
       round: game.round,
       czarIndex: game.czarIndex,
@@ -560,6 +622,7 @@ async function saveGameToDb(game: GameState): Promise<void> {
           personaId: p.persona?.id,
           personaName: p.persona?.name,
           systemPrompt: p.persona?.systemPrompt,
+          userId: p.userId,
         })),
       },
     },
@@ -587,6 +650,7 @@ async function saveGameToDb(game: GameState): Promise<void> {
         personaId: player.persona?.id,
         personaName: player.persona?.name,
         systemPrompt: player.persona?.systemPrompt,
+        userId: player.userId,
         gameId: game.id,
       },
       update: {
@@ -647,6 +711,7 @@ export async function loadGameFromDb(
     id: dbGame.id,
     status: dbGame.status,
     round: dbGame.round,
+    ownerId: dbGame.ownerId,
     czarIndex: dbGame.czarIndex,
     currentBlackCard: dbGame.currentBlackCard as BlackCard | null,
     deckBlack,
@@ -657,6 +722,7 @@ export async function loadGameFromDb(
       isBot: p.isBot,
       score: p.score,
       hand: p.hand as unknown as WhiteCard[],
+      userId: p.userId ?? undefined,
       persona: p.personaId
         ? {
             id: p.personaId,
@@ -678,4 +744,8 @@ export async function loadGameFromDb(
 
   activeGames.set(gameId, game);
   return game;
+}
+
+export async function persistGameState(game: GameState): Promise<void> {
+  await saveGameToDb(game);
 }

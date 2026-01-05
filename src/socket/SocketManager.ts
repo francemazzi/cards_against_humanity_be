@@ -105,6 +105,97 @@ function handleConnection(socket: Socket): void {
     }
   });
 
+  // Play cards
+  socket.on(SOCKET_EVENTS.PLAY_CARDS, async (data: { gameId: string; playerId: string; cardIds: string[] }) => {
+    try {
+      const { gameId, playerId, cardIds } = data;
+      const apiKey = socketData.openaiKey;
+      
+      console.log(`Player ${playerId} playing cards in game ${gameId}:`, cardIds);
+      
+      // Import gameService dynamically to avoid circular dependencies
+      const gameService = await import("../core/gameService.js");
+      await gameService.playHumanCards(gameId, playerId, cardIds, apiKey);
+      
+      // Broadcast updated game state
+      const gameResponse = gameService.getGameResponse(gameId);
+      broadcastGameState(gameId, gameResponse);
+      
+      // Notify that cards were played
+      broadcastCardsPlayed(gameId, { playerId, cardsCount: cardIds.length });
+      
+    } catch (error) {
+      console.error("Error playing cards:", error);
+      emitError(socket, error);
+    }
+  });
+
+  // Judge winner
+  socket.on(SOCKET_EVENTS.JUDGE_WINNER, async (data: { gameId: string; playerId: string; winnerIndex: number }) => {
+    try {
+      const { gameId, winnerIndex } = data;
+      const apiKey = socketData.openaiKey;
+      
+      console.log(`Judging winner in game ${gameId}: index ${winnerIndex}`);
+      
+      // Import gameService dynamically to avoid circular dependencies
+      const gameService = await import("../core/gameService.js");
+      await gameService.humanJudge(gameId, winnerIndex, apiKey);
+      
+      // Broadcast updated game state
+      const gameResponse = gameService.getGameResponse(gameId);
+      broadcastGameState(gameId, gameResponse);
+      
+    } catch (error) {
+      console.error("Error judging winner:", error);
+      emitError(socket, error);
+    }
+  });
+
+  // Start game
+  socket.on(SOCKET_EVENTS.START_GAME, async (data: { gameId: string }) => {
+    try {
+      const { gameId } = data;
+      const apiKey = socketData.openaiKey;
+      
+      console.log(`Starting game ${gameId}`);
+      
+      // Import gameService dynamically to avoid circular dependencies
+      const gameService = await import("../core/gameService.js");
+      await gameService.startGame(gameId, apiKey);
+      
+      // Broadcast updated game state
+      const gameResponse = gameService.getGameResponse(gameId);
+      broadcastRoundStarted(gameId, gameResponse);
+      
+    } catch (error) {
+      console.error("Error starting game:", error);
+      emitError(socket, error);
+    }
+  });
+
+  // Next round
+  socket.on(SOCKET_EVENTS.NEXT_ROUND, async (data: { gameId: string }) => {
+    try {
+      const { gameId } = data;
+      const apiKey = socketData.openaiKey;
+      
+      console.log(`Starting next round in game ${gameId}`);
+      
+      // Import gameService dynamically to avoid circular dependencies
+      const gameService = await import("../core/gameService.js");
+      await gameService.nextRound(gameId, apiKey);
+      
+      // Broadcast updated game state
+      const gameResponse = gameService.getGameResponse(gameId);
+      broadcastRoundStarted(gameId, gameResponse);
+      
+    } catch (error) {
+      console.error("Error starting next round:", error);
+      emitError(socket, error);
+    }
+  });
+
   // Handle disconnect
   socket.on("disconnect", () => {
     console.log(`Socket disconnected: ${socket.id}`);

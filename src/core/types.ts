@@ -36,6 +36,7 @@ export interface Player {
   score: number;
   hand: WhiteCard[];
   persona?: Persona;
+  userId?: string;
 }
 
 export interface PlayedCards {
@@ -52,6 +53,7 @@ export interface GameState {
   id: string;
   status: GameStatus;
   round: number;
+  ownerId?: string;
 
   // Decks
   deckBlack: BlackCard[];
@@ -110,4 +112,38 @@ export interface GameResponse {
 export interface PlayerHandResponse {
   hand: WhiteCard[];
   requiredCards: number;
+}
+
+// ============ USER AUTHENTICATION TYPES ============
+
+export interface User {
+  id: string;
+  openaiKeyHash: string;
+  openaiKeyLast4: string;
+  nickname?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  lastLoginAt?: Date;
+}
+
+export interface UserPublic {
+  id: string;
+  openaiKeyLast4: string;
+  nickname?: string;
+  createdAt: Date;
+  lastLoginAt?: Date;
+}
+
+export interface CreateUserRequest {
+  openaiApiKey: string;
+  nickname?: string;
+}
+
+export interface UpdateUserRequest {
+  nickname?: string;
+}
+
+export interface AuthenticatedRequest {
+  user: User;
+  openaiApiKey: string; // La chiave originale per le chiamate API
 }

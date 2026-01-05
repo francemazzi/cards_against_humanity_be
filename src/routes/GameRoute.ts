@@ -1,7 +1,8 @@
 // Game API Routes
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import * as gameService from "../core/gameService.js";
-import * as llm from "../ai/llm.js";
+import { authenticationHook } from "../middleware/authMiddleware.js";
+import { GameLobbyService } from "../core/GameLobbyService.js";
 
 // Request body types
 interface CreateGameBody {
@@ -36,61 +37,9 @@ function getApiKeyFromRequest(request: FastifyRequest): string | undefined {
   return request.headers[OPENAI_KEY_HEADER] as string | undefined;
 }
 
-export async function registerGameRoute(fastify: FastifyInstance): Promise<void> {
-  // Validate API key endpoint
-  fastify.post(
-    "/api/auth/validate-key",
-    {
-      schema: {
-        description: "Validate an OpenAI API key",
-        tags: ["Auth"],
-        headers: {
-          type: "object",
-          properties: {
-            [OPENAI_KEY_HEADER]: {
-              type: "string",
-              description: "Your OpenAI API key",
-            },
-          },
-          required: [OPENAI_KEY_HEADER],
-        },
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              valid: { type: "boolean" },
-              message: { type: "string" },
-            },
-          },
-        },
-      },
-    },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const apiKey = getApiKeyFromRequest(request);
-
-      if (!apiKey) {
-        return reply.status(400).send({
-          valid: false,
-          message: "API key is required in X-OpenAI-Key header",
-        });
-      }
-
-      const isValid = await llm.validateApiKey(apiKey);
-
-      if (isValid) {
-        return reply.send({
-          valid: true,
-          message: "API key is valid",
-        });
-      } else {
-        return reply.status(401).send({
-          valid: false,
-          message: "Invalid API key",
-        });
-      }
-    }
-  );
-
+export async function registerGameRoute(
+  fastify: FastifyInstance
+): Promise<void> {
   // Get available personas (default + custom)
   fastify.get(
     "/api/personas",
@@ -124,7 +73,8 @@ export async function registerGameRoute(fastify: FastifyInstance): Promise<void>
         personas.map((p) => ({
           id: p.id,
           name: p.name,
-          description: p.description || p.systemPrompt.substring(0, 100) + "...",
+          description:
+            p.description || p.systemPrompt.substring(0, 100) + "...",
           isCustom: customPersonaIds.has(p.id),
         }))
       );
@@ -415,7 +365,8 @@ export async function registerGameRoute(fastify: FastifyInstance): Promise<void>
           personas,
           pointsToWin,
         },
-        apiKey
+        apiKey,
+        undefined
       );
 
       return reply.status(201).send({
@@ -424,6 +375,59 @@ export async function registerGameRoute(fastify: FastifyInstance): Promise<void>
         message:
           "Game created. Connect via Socket.IO and call POST /api/games/:gameId/start to begin.",
       });
+    }
+  );
+
+  // Join game (resolve or create playerId for authenticated user)
+  fastify.post<{ Params: GameParams; Body: { playerName?: string } }>(
+    "/api/games/:gameId/join",
+    {
+      preHandler: authenticationHook,
+      schema: {
+        description:
+          "Resolve (or create in lobby) the human playerId for the authenticated user",
+        tags: ["Game"],
+        headers: {
+          type: "object",
+          properties: {
+            [OPENAI_KEY_HEADER]: {
+              type: "string",
+              description: "Your OpenAI API key",
+            },
+          },
+          required: [OPENAI_KEY_HEADER],
+        },
+        params: {
+          type: "object",
+          properties: {
+            gameId: { type: "string" },
+          },
+        },
+        body: {
+          type: "object",
+          properties: {
+            playerName: { type: "string" },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              playerId: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { gameId } = request.params;
+      const lobby = new GameLobbyService();
+      const { playerId } = await lobby.joinGame(
+        gameId,
+        request.user!,
+        request.body?.playerName
+      );
+      return reply.send({ playerId });
     }
   );
 

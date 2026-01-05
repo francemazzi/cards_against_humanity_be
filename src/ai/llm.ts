@@ -17,7 +17,10 @@ function createClient(userApiKey?: string): OpenAI {
     throw new Error("OpenAI API key is required. Provide via X-OpenAI-Key header.");
   }
   
-  return new OpenAI({ apiKey });
+  return new OpenAI({ 
+      apiKey,
+      timeout: 10000 // 10 seconds timeout
+  });
 }
 
 /**
