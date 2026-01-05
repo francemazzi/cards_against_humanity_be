@@ -696,11 +696,11 @@ export async function loadGameFromDb(
 
   const deckWhite = dbGame.deckWhiteIds
     .map((id: string) => allWhite.find((c: WhiteCard) => c.id === id))
-    .filter((c): c is WhiteCard => c !== undefined);
+    .filter((c: WhiteCard | undefined): c is WhiteCard => c !== undefined);
 
   const deckBlack = dbGame.deckBlackIds
     .map((id: string) => allBlack.find((c: BlackCard) => c.id === id))
-    .filter((c): c is BlackCard => c !== undefined);
+    .filter((c: BlackCard | undefined): c is BlackCard => c !== undefined);
 
   // Filter played cards for current round
   const currentRoundCards = dbGame.playedCards.filter(
