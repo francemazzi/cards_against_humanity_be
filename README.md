@@ -143,19 +143,47 @@ X-OpenAI-Key: sk-your-openai-api-key
 
 ### Endpoints
 
-| Metodo | Endpoint                                    | Descrizione                  |
-| ------ | ------------------------------------------- | ---------------------------- |
-| `POST` | `/api/auth/validate-key`                    | Valida chiave OpenAI         |
-| `GET`  | `/api/personas`                             | Lista personaggi disponibili |
-| `POST` | `/api/games`                                | Crea nuova partita           |
-| `POST` | `/api/games/:gameId/start`                  | Avvia partita                |
-| `GET`  | `/api/games/:gameId`                        | Stato partita                |
-| `GET`  | `/api/games/:gameId/players/:playerId/hand` | Mano del giocatore           |
-| `POST` | `/api/games/:gameId/play`                   | Gioca carte                  |
-| `POST` | `/api/games/:gameId/judge`                  | Scegli vincitore (se Czar)   |
-| `POST` | `/api/games/:gameId/next-round`             | Prossimo round               |
+| Metodo   | Endpoint                                    | Descrizione                       |
+| -------- | ------------------------------------------- | --------------------------------- |
+| `POST`   | `/api/auth/validate-key`                    | Valida chiave OpenAI              |
+| `GET`    | `/api/personas`                             | Lista personaggi (default+custom) |
+| `POST`   | `/api/personas`                             | Crea personaggio custom           |
+| `GET`    | `/api/personas/custom`                      | Lista personaggi custom           |
+| `GET`    | `/api/personas/custom/:id`                  | Dettaglio personaggio custom      |
+| `PUT`    | `/api/personas/custom/:id`                  | Aggiorna personaggio custom       |
+| `DELETE` | `/api/personas/custom/:id`                  | Elimina personaggio custom        |
+| `POST`   | `/api/games`                                | Crea nuova partita                |
+| `POST`   | `/api/games/:gameId/start`                  | Avvia partita                     |
+| `GET`    | `/api/games/:gameId`                        | Stato partita                     |
+| `GET`    | `/api/games/:gameId/players/:playerId/hand` | Mano del giocatore                |
+| `POST`   | `/api/games/:gameId/play`                   | Gioca carte                       |
+| `POST`   | `/api/games/:gameId/judge`                  | Scegli vincitore (se Czar)        |
+| `POST`   | `/api/games/:gameId/next-round`             | Prossimo round                    |
 
-### Esempio: Creare una Partita
+### Esempio: Creare un Personaggio Custom
+
+```bash
+curl -X POST http://localhost:3300/api/personas \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Mario Rossi",
+    "systemPrompt": "Sei Mario Rossi, un italiano medio con umorismo sarcastico e diretto. Apprezzi battute sulla burocrazia italiana, il calcio e la famiglia. Sei sempre ironico ma mai offensivo.",
+    "description": "Un italiano medio con senso dell'umorismo"
+  }'
+```
+
+Risposta:
+
+```json
+{
+  "id": "custom-persona-uuid",
+  "name": "Mario Rossi",
+  "systemPrompt": "Sei Mario Rossi...",
+  "description": "Un italiano medio con senso dell'umorismo"
+}
+```
+
+### Esempio: Creare una Partita (con personaggi default o custom)
 
 ```bash
 curl -X POST http://localhost:3300/api/games \
@@ -163,7 +191,7 @@ curl -X POST http://localhost:3300/api/games \
   -H "X-OpenAI-Key: sk-your-key" \
   -d '{
     "humanPlayerName": "Francesco",
-    "personas": ["caesar", "einstein"],
+    "personas": ["caesar", "einstein", "custom-persona-uuid"],
     "pointsToWin": 5
   }'
 ```
@@ -177,6 +205,8 @@ Risposta:
   "message": "Game created..."
 }
 ```
+
+> **Nota**: Puoi usare sia ID di personaggi default (es. `"caesar"`, `"einstein"`) che ID di personaggi custom creati da te.
 
 ---
 

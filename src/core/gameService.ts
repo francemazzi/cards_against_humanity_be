@@ -67,7 +67,7 @@ export async function createGame(
 
   // Add AI players
   for (const personaIdOrName of request.personas) {
-    const persona = findPersona(personaIdOrName);
+    const persona = await findPersona(personaIdOrName);
     if (!persona) {
       throw new Error(`Persona not found: ${personaIdOrName}`);
     }
@@ -374,14 +374,164 @@ export function getPlayerHand(
   };
 }
 
-export function getAvailablePersonas(): Persona[] {
-  return DEFAULT_PERSONAS;
+export async function getAvailablePersonas(): Promise<Persona[]> {
+  // Get default personas
+  const defaultPersonas = DEFAULT_PERSONAS;
+
+  // Get custom personas from database
+  const customPersonas = await prisma.persona.findMany();
+
+  // Combine and return (custom personas override defaults with same name)
+  const allPersonas = new Map<string, Persona>();
+
+  // Add defaults first
+  for (const persona of defaultPersonas) {
+    allPersonas.set(persona.id, persona);
+  }
+
+  // Add/override with custom personas
+  for (const dbPersona of customPersonas) {
+    allPersonas.set(dbPersona.id, {
+      id: dbPersona.id,
+      name: dbPersona.name,
+      systemPrompt: dbPersona.systemPrompt,
+      description: dbPersona.description || undefined,
+    });
+  }
+
+  return Array.from(allPersonas.values());
 }
 
-function findPersona(idOrName: string): Persona | undefined {
+async function findPersona(idOrName: string): Promise<Persona | undefined> {
+  // First, try to find in database (custom personas)
+  const dbPersona = await prisma.persona.findFirst({
+    where: {
+      OR: [
+        { id: idOrName },
+        { name: { equals: idOrName, mode: "insensitive" } },
+      ],
+    },
+  });
+
+  if (dbPersona) {
+    return {
+      id: dbPersona.id,
+      name: dbPersona.name,
+      systemPrompt: dbPersona.systemPrompt,
+      description: dbPersona.description || undefined,
+    };
+  }
+
+  // Fallback to default personas
   return DEFAULT_PERSONAS.find(
     (p) => p.id === idOrName || p.name.toLowerCase() === idOrName.toLowerCase()
   );
+}
+
+// --- CUSTOM PERSONA MANAGEMENT ---
+
+export async function createCustomPersona(
+  name: string,
+  systemPrompt: string,
+  description?: string
+): Promise<Persona> {
+  // Check if persona with same name already exists
+  const existing = await prisma.persona.findUnique({
+    where: { name },
+  });
+
+  if (existing) {
+    throw new Error(`Persona with name "${name}" already exists`);
+  }
+
+  const persona = await prisma.persona.create({
+    data: {
+      id: uuidv4(),
+      name,
+      systemPrompt,
+      description: description || null,
+    },
+  });
+
+  return {
+    id: persona.id,
+    name: persona.name,
+    systemPrompt: persona.systemPrompt,
+    description: persona.description || undefined,
+  };
+}
+
+export async function getCustomPersona(id: string): Promise<Persona | null> {
+  const persona = await prisma.persona.findUnique({
+    where: { id },
+  });
+
+  if (!persona) {
+    return null;
+  }
+
+  return {
+    id: persona.id,
+    name: persona.name,
+    systemPrompt: persona.systemPrompt,
+    description: persona.description || undefined,
+  };
+}
+
+export async function getAllCustomPersonas(): Promise<Persona[]> {
+  const personas = await prisma.persona.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+
+  return personas.map((p) => ({
+    id: p.id,
+    name: p.name,
+    systemPrompt: p.systemPrompt,
+    description: p.description || undefined,
+  }));
+}
+
+export async function updateCustomPersona(
+  id: string,
+  data: {
+    name?: string;
+    systemPrompt?: string;
+    description?: string;
+  }
+): Promise<Persona> {
+  // Check if name is being changed and if new name already exists
+  if (data.name) {
+    const existing = await prisma.persona.findUnique({
+      where: { name: data.name },
+    });
+    if (existing && existing.id !== id) {
+      throw new Error(`Persona with name "${data.name}" already exists`);
+    }
+  }
+
+  const persona = await prisma.persona.update({
+    where: { id },
+    data: {
+      ...(data.name && { name: data.name }),
+      ...(data.systemPrompt && { systemPrompt: data.systemPrompt }),
+      ...(data.description !== undefined && {
+        description: data.description || null,
+      }),
+    },
+  });
+
+  return {
+    id: persona.id,
+    name: persona.name,
+    systemPrompt: persona.systemPrompt,
+    description: persona.description || undefined,
+  };
+}
+
+export async function deleteCustomPersona(id: string): Promise<void> {
+  await prisma.persona.delete({
+    where: { id },
+  });
 }
 
 // --- DATABASE PERSISTENCE ---

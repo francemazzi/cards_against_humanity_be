@@ -91,13 +91,13 @@ export async function registerGameRoute(fastify: FastifyInstance): Promise<void>
     }
   );
 
-  // Get available personas
+  // Get available personas (default + custom)
   fastify.get(
     "/api/personas",
     {
       schema: {
-        description: "Get list of available AI personas",
-        tags: ["Game"],
+        description: "Get list of available AI personas (default + custom)",
+        tags: ["Personas"],
         response: {
           200: {
             type: "array",
@@ -107,6 +107,7 @@ export async function registerGameRoute(fastify: FastifyInstance): Promise<void>
                 id: { type: "string" },
                 name: { type: "string" },
                 description: { type: "string" },
+                isCustom: { type: "boolean" },
               },
             },
           },
@@ -114,14 +115,247 @@ export async function registerGameRoute(fastify: FastifyInstance): Promise<void>
       },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const personas = gameService.getAvailablePersonas();
+      const personas = await gameService.getAvailablePersonas();
+      const customPersonaIds = new Set(
+        (await gameService.getAllCustomPersonas()).map((p) => p.id)
+      );
+
       return reply.send(
         personas.map((p) => ({
           id: p.id,
           name: p.name,
           description: p.description || p.systemPrompt.substring(0, 100) + "...",
+          isCustom: customPersonaIds.has(p.id),
         }))
       );
+    }
+  );
+
+  // Create custom persona
+  fastify.post(
+    "/api/personas",
+    {
+      schema: {
+        description: "Create a custom AI persona",
+        tags: ["Personas"],
+        body: {
+          type: "object",
+          required: ["name", "systemPrompt"],
+          properties: {
+            name: { type: "string", minLength: 1, maxLength: 100 },
+            systemPrompt: { type: "string", minLength: 10 },
+            description: { type: "string", maxLength: 500 },
+          },
+        },
+        response: {
+          201: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              systemPrompt: { type: "string" },
+              description: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async (
+      request: FastifyRequest<{
+        Body: { name: string; systemPrompt: string; description?: string };
+      }>,
+      reply: FastifyReply
+    ) => {
+      const { name, systemPrompt, description } = request.body;
+      const persona = await gameService.createCustomPersona(
+        name,
+        systemPrompt,
+        description
+      );
+      return reply.status(201).send(persona);
+    }
+  );
+
+  // Get all custom personas
+  fastify.get(
+    "/api/personas/custom",
+    {
+      schema: {
+        description: "Get all custom personas",
+        tags: ["Personas"],
+        response: {
+          200: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                name: { type: "string" },
+                systemPrompt: { type: "string" },
+                description: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const personas = await gameService.getAllCustomPersonas();
+      return reply.send(personas);
+    }
+  );
+
+  // Get single custom persona
+  fastify.get(
+    "/api/personas/custom/:id",
+    {
+      schema: {
+        description: "Get a custom persona by ID",
+        tags: ["Personas"],
+        params: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              systemPrompt: { type: "string" },
+              description: { type: "string" },
+            },
+          },
+          404: {
+            type: "object",
+            properties: {
+              error: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply
+    ) => {
+      const { id } = request.params;
+      const persona = await gameService.getCustomPersona(id);
+      if (!persona) {
+        return reply.status(404).send({ error: "Persona not found" });
+      }
+      return reply.send(persona);
+    }
+  );
+
+  // Update custom persona
+  fastify.put(
+    "/api/personas/custom/:id",
+    {
+      schema: {
+        description: "Update a custom persona",
+        tags: ["Personas"],
+        params: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+          },
+        },
+        body: {
+          type: "object",
+          properties: {
+            name: { type: "string", minLength: 1, maxLength: 100 },
+            systemPrompt: { type: "string", minLength: 10 },
+            description: { type: "string", maxLength: 500 },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              systemPrompt: { type: "string" },
+              description: { type: "string" },
+            },
+          },
+          404: {
+            type: "object",
+            properties: {
+              error: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async (
+      request: FastifyRequest<{
+        Params: { id: string };
+        Body: { name?: string; systemPrompt?: string; description?: string };
+      }>,
+      reply: FastifyReply
+    ) => {
+      const { id } = request.params;
+      const { name, systemPrompt, description } = request.body;
+
+      try {
+        const persona = await gameService.updateCustomPersona(id, {
+          name,
+          systemPrompt,
+          description,
+        });
+        return reply.send(persona);
+      } catch (error: any) {
+        if (error.message.includes("not found")) {
+          return reply.status(404).send({ error: error.message });
+        }
+        return reply.status(400).send({ error: error.message });
+      }
+    }
+  );
+
+  // Delete custom persona
+  fastify.delete(
+    "/api/personas/custom/:id",
+    {
+      schema: {
+        description: "Delete a custom persona",
+        tags: ["Personas"],
+        params: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              message: { type: "string" },
+            },
+          },
+          404: {
+            type: "object",
+            properties: {
+              error: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply
+    ) => {
+      const { id } = request.params;
+      try {
+        await gameService.deleteCustomPersona(id);
+        return reply.send({ message: "Persona deleted successfully" });
+      } catch (error: any) {
+        return reply.status(404).send({ error: "Persona not found" });
+      }
     }
   );
 
