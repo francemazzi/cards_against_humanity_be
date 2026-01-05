@@ -12,7 +12,7 @@ services:
       - NODE_ENV=production
       - PORT=3300
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://postgres:password@db:5432/cards_db
+      - DATABASE_URL=postgresql://postgres:password@db:5457/cards_db
     restart: unless-stopped
     depends_on:
       - db
@@ -23,7 +23,7 @@ services:
     image: postgres:15-alpine
     container_name: cards-against-humanity-db
     ports:
-      - "5432:5432"
+      - "5457:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password

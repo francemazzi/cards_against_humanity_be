@@ -4,8 +4,9 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY tsconfig.json ./
+COPY prisma ./prisma/
 
-RUN npm ci
+RUN npm install
 
 COPY src ./src
 
@@ -17,7 +18,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --only=production
+RUN npm install --only=production
 
 COPY --from=builder /app/dist ./dist
 

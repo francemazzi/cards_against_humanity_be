@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -11,4 +8,92 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ============ GAME STATE ============
+
+model Game {
+  id              String       @id @default(uuid())
+  status          GameStatus   @default(LOBBY)
+  round           Int          @default(0)
+  czarIndex       Int          @default(0)
+  pointsToWin     Int          @default(7)
+  maxPlayers      Int          @default(8)
+  
+  // Carte correnti (JSON per semplicità, il JSON deck è grande)
+  currentBlackCard Json?       // { text, pick, pack }
+  deckBlackIds     String[]    // IDs delle carte nere rimaste
+  deckWhiteIds     String[]    // IDs delle carte bianche rimaste
+  
+  winnerId        String?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  players         Player[]
+  playedCards     PlayedCard[]
+  
+  @@index([status])
+}
+
+model Player {
+  id        String   @id @default(uuid())
+  name      String
+  isBot     Boolean  @default(false)
+  score     Int      @default(0)
+  
+  // Mano corrente (array di JSON carte)
+  hand      Json[]   // Array di { text, pack, id }
+  
+  // Persona AI (solo se isBot = true)
+  personaId   String?
+  personaName String?
+  systemPrompt String? @db.Text
+  
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  playedCards PlayedCard[]
+  
+  createdAt DateTime @default(now())
+  
+  @@index([gameId])
+}
+
+model PlayedCard {
+  id        String   @id @default(uuid())
+  cards     Json[]   // Array di carte giocate (per Pick 2/3)
+  
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  round     Int      // Round in cui è stata giocata
+  
+  createdAt DateTime @default(now())
+  
+  @@index([gameId, round])
+}
+
+// ============ PERSONAS LIBRARY ============
+
+model Persona {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  systemPrompt String   @db.Text
+  description  String?
+  
+  createdAt    DateTime @default(now())
+}
+
+// ============ ENUMS ============
+
+enum GameStatus {
+  LOBBY
+  PLAYING_CARDS
+  JUDGING
+  ROUND_ENDED
+  GAME_OVER
 }
