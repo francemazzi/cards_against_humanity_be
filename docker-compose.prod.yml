@@ -14,6 +14,7 @@ services:
       - NODE_ENV=production
       - PORT=3300
       - HOST=0.0.0.0
+      - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped
     depends_on:
       - db
