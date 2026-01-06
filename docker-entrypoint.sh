@@ -7,7 +7,9 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-echo "✅ DATABASE_URL is set"
+# Show DATABASE_URL without password for debugging
+DB_URL_MASKED=$(echo $DATABASE_URL | sed 's/:[^@]*@/:***@/')
+echo "✅ DATABASE_URL is set: ${DB_URL_MASKED}"
 
 # Wait for database to be ready
 echo "⏳ Waiting for database to be ready..."
