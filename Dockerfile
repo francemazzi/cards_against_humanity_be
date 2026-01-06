@@ -18,11 +18,15 @@ RUN npm run build
 
 FROM node:20-alpine AS production
 
+# Install netcat for database health check
+RUN apk add --no-cache netcat-openbsd
+
 WORKDIR /app
 
 COPY package*.json ./
 COPY cards ./cards/
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 RUN npm install --only=production
 
