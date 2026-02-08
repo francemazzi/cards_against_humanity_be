@@ -31,10 +31,11 @@ COPY prisma.config.ts ./
 RUN npm install --only=production
 
 # Install Prisma CLI for migrations
-RUN npm install prisma --save-dev
+RUN npm install prisma @prisma/client --save-dev
 
-# Generate Prisma client for production
-RUN npx prisma generate
+# Copy generated Prisma client from builder
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/src/generated ./src/generated
 
 COPY --from=builder /app/dist ./dist
 

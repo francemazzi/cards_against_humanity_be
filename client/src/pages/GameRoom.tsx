@@ -215,7 +215,7 @@ export const GameRoom = () => {
   const sortedPlayers = [...game.players].sort((a, b) => b.score - a.score);
 
   return (
-    <div className="min-h-screen bg-gray-200 flex relative">
+    <div className="min-h-[100dvh] bg-gray-200 flex relative">
       {/* Toast Notification */}
       {notification && (
         <div className={clsx(
@@ -237,7 +237,7 @@ export const GameRoom = () => {
       {/* Toggle Leaderboard Button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-20 left-4 z-50 bg-yellow-500 text-black p-3 rounded-full shadow-2xl hover:scale-110 transition-transform lg:hidden"
+        className="fixed top-20 left-4 z-50 bg-yellow-500 text-black p-3 min-w-touch min-h-touch rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-transform lg:hidden flex items-center justify-center"
         aria-label="Toggle Leaderboard"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -247,7 +247,7 @@ export const GameRoom = () => {
 
       {/* Leaderboard Sidebar */}
       <div className={clsx(
-        "fixed lg:relative w-80 bg-gray-900 text-white flex flex-col shadow-2xl z-40 transition-transform duration-300 h-full",
+        "fixed lg:relative w-72 xs:w-80 bg-gray-900 text-white flex flex-col shadow-2xl z-40 transition-transform duration-300 h-full",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="bg-black p-4 border-b border-gray-700 flex items-center justify-between">
@@ -385,9 +385,9 @@ export const GameRoom = () => {
                 </div>
 
                 <div className="flex gap-4 justify-center">
-                  <button 
+                  <button
                     onClick={() => navigate('/lobby')}
-                    className="bg-blue-600 text-white px-6 md:px-8 py-2 md:py-3 rounded-full font-bold text-base md:text-xl hover:scale-105 transition-transform"
+                    className="bg-blue-600 text-white px-6 md:px-8 py-3 md:py-4 min-h-touch rounded-full font-bold text-base md:text-xl hover:scale-105 active:scale-95 transition-transform"
                   >
                     Back to Lobby
                   </button>
@@ -409,9 +409,9 @@ export const GameRoom = () => {
               {/* Start Button (Lobby) */}
               {game.status === 'LOBBY' && (
                    <div className="text-center">
-                      <button 
+                      <button
                           onClick={handleStartGame}
-                          className="bg-black text-white px-6 md:px-8 py-2 md:py-3 rounded-full font-bold text-base md:text-xl hover:scale-105 transition-transform"
+                          className="bg-black text-white px-6 md:px-8 py-3 md:py-4 min-h-touch rounded-full font-bold text-base md:text-xl hover:scale-105 active:scale-95 transition-transform"
                       >
                           Start Game
                       </button>
@@ -423,7 +423,7 @@ export const GameRoom = () => {
                    {/* Black Card */}
                    {game.currentBlackCard && (
                       <div className="mb-4 md:mb-8">
-                          <Card card={game.currentBlackCard} isBlack className="w-48 h-64 md:w-64 md:h-80 text-lg md:text-2xl" />
+                          <Card card={game.currentBlackCard} isBlack size="lg" />
                       </div>
                    )}
 
@@ -441,17 +441,15 @@ export const GameRoom = () => {
                                {/* If multiple cards were played, stack them or show side-by-side. 
                                    For simplicity, just listing them vertical or stacked.
                                    Typically CAH plays are treated as a single unit. */}
-                               <div className="flex gap-1 md:gap-2">
+                               <div className="flex gap-1 xs:gap-2">
                                    {submission.cards.map((card) => (
-                                       <Card 
-                                          key={card.id} 
-                                          card={card} 
-                                          // Hide text if we are in PLAYING_CARDS phase (blind submission)
-                                          // But table usually only updates in JUDGING phase or shows face-down cards
+                                       <Card
+                                          key={card.id}
+                                          card={card}
+                                          size="md"
                                           hidden={game.status === 'PLAYING_CARDS'}
                                           className={clsx(
-                                            canJudge && "ring-2 ring-transparent group-hover:ring-yellow-400",
-                                            "scale-90 md:scale-100"
+                                            canJudge && "ring-2 ring-transparent group-hover:ring-yellow-400"
                                           )}
                                        />
                                    ))}
@@ -477,21 +475,21 @@ export const GameRoom = () => {
 
         {/* Hand Area (Fixed Bottom) - Hide on Game Over */}
         {game.status !== 'GAME_OVER' && (
-          <div className="bg-gray-800 p-3 md:p-6 shadow-inner-top">
+          <div className="bg-gray-800 p-3 md:p-6 landscape:p-2 shadow-inner-top">
             <div className="max-w-7xl mx-auto">
-                <h3 className="text-white font-bold text-sm md:text-base mb-2 md:mb-4 px-2">
+                <h3 className="text-white font-bold text-sm md:text-base landscape:text-xs mb-2 md:mb-4 landscape:mb-1 px-2">
                   Your Hand {canPlay && `(Pick ${pickCount})`}
                 </h3>
-                
-                <div className="flex gap-2 md:gap-4 overflow-x-auto pb-3 md:pb-4 px-2 snap-x scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+
+                <div className="flex gap-2 xs:gap-3 md:gap-4 landscape:gap-2 overflow-x-auto pb-3 md:pb-4 landscape:pb-2 px-2 snap-x scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                     {hand.map((card) => (
                         <div key={card.id} className="snap-center shrink-0">
-                            <Card 
-                                card={card} 
+                            <Card
+                                card={card}
+                                size="sm"
                                 onClick={() => canPlay && toggleCardSelection(card.id)}
                                 isSelected={selectedCards.includes(card.id)}
                                 disabled={!canPlay && game.status !== 'LOBBY'}
-                                className="scale-90 md:scale-100"
                             />
                         </div>
                     ))}
@@ -499,9 +497,9 @@ export const GameRoom = () => {
 
                 {canPlay && selectedCards.length === pickCount && (
                     <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-30">
-                        <button 
+                        <button
                             onClick={playCards}
-                            className="bg-green-500 text-white font-bold py-3 px-6 md:py-4 md:px-8 rounded-full shadow-xl hover:bg-green-600 animate-bounce text-sm md:text-base"
+                            className="bg-green-500 text-white font-bold py-3 px-6 md:py-4 md:px-8 min-h-touch rounded-full shadow-xl hover:bg-green-600 active:scale-95 animate-bounce text-sm md:text-base"
                         >
                             CONFIRM PLAY
                         </button>

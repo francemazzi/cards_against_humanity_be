@@ -41,7 +41,8 @@ let io: Server | null = null;
 export function initSocketServer(httpServer: HttpServer): Server {
   io = new Server(httpServer, {
     cors: {
-      origin: "*",
+      origin: true,
+      credentials: true,
       methods: ["GET", "POST"],
     },
     path: "/socket.io",

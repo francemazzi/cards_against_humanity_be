@@ -45,10 +45,10 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-        <h1 className="text-3xl font-bold font-cah mb-6 text-center">Cards Against Humanity</h1>
-        
+    <div className="min-h-[100dvh] flex items-center justify-center bg-gray-100 p-4">
+      <div className="bg-white p-6 xs:p-8 rounded-lg shadow-xl max-w-md w-full">
+        <h1 className="text-2xl xs:text-3xl font-bold font-cah mb-6 text-center">Cards Against Humanity</h1>
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-bold mb-2">Nickname</label>
@@ -56,19 +56,19 @@ export const Login = () => {
               type="text"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              className="w-full p-3 border-2 border-black rounded focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full p-3 min-h-touch border-2 border-black rounded text-base focus:outline-none focus:ring-2 focus:ring-black"
               placeholder="Enter your name"
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-bold mb-2">OpenAI API Key</label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              className="w-full p-3 border-2 border-black rounded focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full p-3 min-h-touch border-2 border-black rounded text-base focus:outline-none focus:ring-2 focus:ring-black"
               placeholder="sk-..."
               required
             />
@@ -86,7 +86,7 @@ export const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black text-white font-bold py-3 px-4 rounded hover:bg-gray-800 transition-colors disabled:opacity-50"
+            className="w-full bg-black text-white font-bold py-3 px-4 min-h-touch rounded text-base hover:bg-gray-800 active:scale-98 transition-all disabled:opacity-50"
           >
             {loading ? 'Connecting...' : 'Enter Game'}
           </button>

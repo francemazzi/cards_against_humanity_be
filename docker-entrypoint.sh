@@ -32,6 +32,10 @@ until nc -z ${DB_HOST} ${DB_PORT} 2>/dev/null; do
 done
 
 echo "✅ Database is ready!"
+echo "🔄 Generating Prisma client for ARM..."
+
+npx prisma generate
+
 echo "🔄 Running Prisma migrations..."
 
 npx prisma migrate deploy
