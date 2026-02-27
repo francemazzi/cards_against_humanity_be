@@ -36,7 +36,7 @@ export function setSessionCookie(reply: FastifyReply, userId: string): void {
     signed: true,
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production" && process.env.FORCE_HTTPS === "true",
+    secure: false,
     path: "/",
     maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
   });

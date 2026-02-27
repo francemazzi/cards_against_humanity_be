@@ -2,7 +2,7 @@ import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
 import type { AuthResponse, CreateGameResponse, GameResponse, WhiteCard, Persona, UserPublic, LeaderboardEntry } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3300';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -79,7 +79,7 @@ export const leaderboardService = {
 export let socket: Socket;
 
 export const initSocket = () => {
-  socket = io(API_URL, {
+  socket = io(API_URL || window.location.origin, {
     withCredentials: true,
   });
   return socket;
