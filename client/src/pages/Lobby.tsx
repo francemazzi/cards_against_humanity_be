@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { gameService, authService } from "../services/api";
 import { useGameStore } from "../store/gameStore";
-import { LogOut, Plus, Play, X, User as UserIcon, Settings, Trophy, ExternalLink } from "lucide-react";
+import { LogOut, Plus, Play, X, User as UserIcon, Settings, Trophy } from "lucide-react";
 import { PlayerSessionStorage } from "../services/PlayerSessionStorage";
 import { OpenAIKeyModal } from "../components/OpenAIKeyModal";
 import type { Persona } from "../types";
@@ -132,30 +132,18 @@ export const Lobby = () => {
           </div>
         </header>
 
-        {/* OpenAI Key Banner */}
+        {/* Optional OpenAI Key Tip */}
         {!user?.hasOpenAIKey && (
-          <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-4 xs:p-6 mb-6 md:mb-8">
-            <h3 className="font-bold text-yellow-800 mb-1">OpenAI API Key Required</h3>
-            <p className="text-yellow-700 text-sm mb-3">
-              To play with AI opponents, you need to set your OpenAI API key.
-            </p>
-            <div className="flex flex-wrap gap-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 xs:p-6 mb-6 md:mb-8">
+            <p className="text-blue-800 text-sm">
+              AI players use a local model. For faster, higher quality responses, you can{' '}
               <button
                 onClick={() => setShowOpenAIKeyModal(true)}
-                className="bg-black text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-gray-800 active:scale-95"
+                className="underline font-bold hover:text-blue-900"
               >
-                Set API Key
-              </button>
-              <a
-                href="https://platform.openai.com/settings/organization/api-keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium px-4 py-2"
-              >
-                <ExternalLink size={16} />
-                Get a key from OpenAI
-              </a>
-            </div>
+                add an OpenAI API key
+              </button>.
+            </p>
           </div>
         )}
 
@@ -170,10 +158,9 @@ export const Lobby = () => {
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
-              disabled={!user?.hasOpenAIKey}
-              className="w-full bg-black text-white font-bold py-4 min-h-touch rounded-lg text-base xs:text-lg hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="w-full bg-black text-white font-bold py-4 min-h-touch rounded-lg text-base xs:text-lg hover:scale-105 active:scale-95 transition-transform"
             >
-              {user?.hasOpenAIKey ? 'Setup Game' : 'Set API Key First'}
+              Setup Game
             </button>
           </div>
 

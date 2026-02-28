@@ -74,7 +74,7 @@ export const OpenAIKeyModal = ({ onClose }: OpenAIKeyModalProps) => {
           <div className={`p-3 rounded-lg text-sm ${user?.hasOpenAIKey ? 'bg-green-50 text-green-800' : 'bg-yellow-50 text-yellow-800'}`}>
             {user?.hasOpenAIKey
               ? `Key set (ending in ...${user.openaiKeyLast4})`
-              : 'No API key set - required to play with AI opponents'}
+              : 'No API key set — AI uses local model. Add a key for faster, higher quality responses.'}
           </div>
 
           {/* Link to OpenAI */}
